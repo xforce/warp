@@ -1,6 +1,6 @@
 [package]
 name = "warp"
-version = "0.3.2" # don't forget to update html_root_url
+version = "0.3.2"                                  # don't forget to update html_root_url
 description = "serve the web at warp speeds"
 authors = ["Sean McArthur <sean@seanmonstar.com>"]
 license = "MIT"
@@ -17,17 +17,34 @@ edition = "2018"
 all-features = true
 
 [dependencies]
-async-compression = { version = "0.3.7", features = ["tokio"], optional = true }
+async-compression = { version = "0.3.7", features = [
+    "tokio",
+    "brotli",
+    "deflate",
+    "gzip",
+    "stream",
+], optional = true }
 bytes = "1.0"
-futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-futures-channel = { version = "0.3.17", features = ["sink"]}
-headers = "0.3"
+futures-util = { version = "0.3", default-features = false, features = [
+    "sink",
+] }
+futures-channel = { version = "0.3.17", features = ["sink"] }
+headers = { git = "https://github.com/xforce/headers.git", branch = "header/encoding" }
 http = "0.2"
-hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+hyper = { version = "0.14", features = [
+    "stream",
+    "server",
+    "http1",
+    "http2",
+    "tcp",
+    "client",
+] }
 log = "0.4"
 mime = "0.3"
 mime_guess = "2.0.0"
-multipart = { version = "0.18", default-features = false, features = ["server"], optional = true }
+multipart = { version = "0.18", default-features = false, features = [
+    "server",
+], optional = true }
 scoped-tls = "1.0"
 serde = "1.0"
 serde_json = "1.0"
@@ -35,7 +52,10 @@ serde_urlencoded = "0.7"
 tokio = { version = "1.0", features = ["fs", "sync", "time"] }
 tokio-stream = "0.1.1"
 tokio-util = { version = "0.6", features = ["io"] }
-tracing = { version = "0.1.21", default-features = false, features = ["log", "std"] }
+tracing = { version = "0.1.21", default-features = false, features = [
+    "log",
+    "std",
+] }
 tower-service = "0.3"
 tokio-tungstenite = { version = "0.15", optional = true }
 percent-encoding = "2.1"
