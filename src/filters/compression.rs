@@ -8,6 +8,7 @@ use async_compression::tokio::bufread::BrotliEncoder;
 #[cfg(feature = "compression-gzip")]
 use async_compression::tokio::bufread::{DeflateEncoder, GzipEncoder};
 
+use headers::ContentCoding;
 use http::header::HeaderValue;
 use hyper::{
     header::{CONTENT_ENCODING, CONTENT_LENGTH},
@@ -83,9 +84,9 @@ pub fn auto() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
         if let Some(ref header) = props.accept_enc {
             if let Some(encoding) = header.prefered_encoding() {
                 return match encoding {
-                    "gzip" => (gzip().func)(props),
-                    "deflate" => (deflate().func)(props),
-                    "br" => (brotli().func)(props),
+                    ContentCoding::GZIP => (gzip().func)(props),
+                    ContentCoding::DEFLATE => (deflate().func)(props),
+                    ContentCoding::BROTLI => (brotli().func)(props),
                     _ => Response::from_parts(props.head, Body::wrap_stream(props.body)),
                 };
             }
@@ -96,17 +97,15 @@ pub fn auto() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
     Compression { func }
 }
 
-fn append_content_encoding(header: Option<HeaderValue>, algo: CompressionAlgo) -> HeaderValue {
-    if let Some(h_val) = header {
-        if let Ok(s) = h_val.to_str() {
-            let new_str = format!("{}, {}", algo.to_str(), s);
-            HeaderValue::try_from(&new_str).unwrap_or_else(|_| algo.into())
-        } else {
-            algo.into()
+/// Given an optional existing encoding header, appends to the existing or creates a new one
+fn create_encoding_header(existing: Option<HeaderValue>, coding: ContentCoding) -> HeaderValue {
+    if let Some(val) = existing {
+        if let Ok(str_val) = val.to_str() {
+            return HeaderValue::try_from(&format!("{}, {}", coding.to_string(), str_val))
+                .unwrap_or_else(|_| coding.into());
         }
-    } else {
-        algo.into()
     }
+    coding.into()
 }
 
 /// Create a wrapping filter that compresses the Body of a [`Response`](crate::reply::Response)
@@ -128,9 +127,9 @@ pub fn gzip() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
         let body = Body::wrap_stream(ReaderStream::new(GzipEncoder::new(StreamReader::new(
             props.body,
         ))));
-        let header = append_content_encoding(
+        let header = create_encoding_header(
             props.head.headers.remove(CONTENT_ENCODING),
-            CompressionAlgo::GZIP,
+            ContentCoding::GZIP,
         );
         props.head.headers.append(CONTENT_ENCODING, header);
         props.head.headers.remove(CONTENT_LENGTH);
@@ -158,9 +157,9 @@ pub fn deflate() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
         let body = Body::wrap_stream(ReaderStream::new(DeflateEncoder::new(StreamReader::new(
             props.body,
         ))));
-        let header = append_content_encoding(
+        let header = create_encoding_header(
             props.head.headers.remove(CONTENT_ENCODING),
-            CompressionAlgo::DEFLATE,
+            ContentCoding::DEFLATE,
         );
         props.head.headers.append(CONTENT_ENCODING, header);
         props.head.headers.remove(CONTENT_LENGTH);
@@ -188,9 +187,9 @@ pub fn brotli() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
         let body = Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(StreamReader::new(
             props.body,
         ))));
-        let header = append_content_encoding(
+        let header = create_encoding_header(
             props.head.headers.remove(CONTENT_ENCODING),
-            CompressionAlgo::BR,
+            ContentCoding::BROTLI,
         );
         props.head.headers.append(CONTENT_ENCODING, header);
         props.head.headers.remove(CONTENT_LENGTH);
