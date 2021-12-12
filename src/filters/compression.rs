@@ -14,6 +14,7 @@ use hyper::{
     header::{CONTENT_ENCODING, CONTENT_LENGTH},
     Body,
 };
+use std::convert::TryFrom;
 use tokio_util::io::{ReaderStream, StreamReader};
 
 use crate::filter::{Filter, WrapSealed};
