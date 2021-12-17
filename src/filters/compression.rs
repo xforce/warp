@@ -3,7 +3,7 @@
 //! Filters that compress the body of a response.
 
 #[cfg(feature = "compression-brotli")]
-use async_compression::tokio::bufread::BrotliEncoder;
+use async_compression::{tokio::bufread::BrotliEncoder, Level as CompressionLevel};
 
 #[cfg(feature = "compression-gzip")]
 use async_compression::tokio::bufread::{DeflateEncoder, GzipEncoder};
@@ -185,9 +185,10 @@ pub fn deflate() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
 #[cfg(feature = "compression-brotli")]
 pub fn brotli() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
     let func = move |mut props: CompressionProps| {
-        let body = Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(StreamReader::new(
-            props.body,
-        ))));
+        let body = Body::wrap_stream(ReaderStream::new(BrotliEncoder::with_quality(
+            StreamReader::new(props.body),
+            CompressionLevel::Precise(4),
+        )));
         let header = create_encoding_header(
             props.head.headers.remove(CONTENT_ENCODING),
             ContentCoding::BROTLI,
