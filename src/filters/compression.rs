@@ -9,6 +9,7 @@ use async_compression::{tokio::bufread::BrotliEncoder, Level as CompressionLevel
 use async_compression::tokio::bufread::{DeflateEncoder, GzipEncoder};
 
 use headers::ContentCoding;
+use headers::Header;
 use http::header::HeaderValue;
 use hyper::{
     header::{CONTENT_ENCODING, CONTENT_LENGTH},
@@ -83,12 +84,28 @@ pub struct Compression<F> {
 pub fn auto() -> Compression<impl Fn(CompressionProps) -> Response + Copy> {
     let func = move |props: CompressionProps| {
         if let Some(ref header) = props.accept_enc {
-            if let Some(encoding) = header.prefered_encoding() {
-                return match encoding {
-                    ContentCoding::GZIP => (gzip().func)(props),
-                    ContentCoding::DEFLATE => (deflate().func)(props),
-                    ContentCoding::BROTLI => (brotli().func)(props),
-                    _ => Response::from_parts(props.head, Body::wrap_stream(props.body)),
+            if let Some(prefered_encoding) = header.prefered_encoding() {
+                let enc = headers::ContentEncoding::decode(
+                    &mut props
+                        .head
+                        .headers
+                        .get_all(http::header::CONTENT_ENCODING)
+                        .iter(),
+                );
+                let alreayd_encoded = if let Ok(ref encoding) = enc {
+                    encoding.contains(prefered_encoding.to_static())
+                } else {
+                    false
+                };
+                return if alreayd_encoded {
+                    Response::from_parts(props.head, Body::wrap_stream(props.body))
+                } else {
+                    match prefered_encoding {
+                        ContentCoding::GZIP => (gzip().func)(props),
+                        ContentCoding::DEFLATE => (deflate().func)(props),
+                        ContentCoding::BROTLI => (brotli().func)(props),
+                        _ => Response::from_parts(props.head, Body::wrap_stream(props.body)),
+                    }
                 };
             }
         }
